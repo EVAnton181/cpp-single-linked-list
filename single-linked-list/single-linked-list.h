@@ -81,6 +81,7 @@ class SingleLinkedList {
         // Возвращает ссылку на самого себя
         // Инкремент итератора, не указывающего на существующий элемент списка, приводит к неопределённому поведению
         BasicIterator& operator++() noexcept {
+            assert(node_); // Достаточно ли проверки итератора на конец списка?
             node_ = node_->next_node;
             return *this;
         }
@@ -90,6 +91,7 @@ class SingleLinkedList {
         // Инкремент итератора, не указывающего на существующий элемент списка,
         // приводит к неопределённому поведению
         BasicIterator operator++(int) noexcept {
+            assert(node_);
             BasicIterator answer(node_);
             node_ = node_->next_node;
             return answer;
@@ -99,6 +101,7 @@ class SingleLinkedList {
         // Вызов этого оператора у итератора, не указывающего на существующий элемент списка,
         // приводит к неопределённому поведению
         [[nodiscard]] reference operator*() const noexcept {
+            assert(node_);
             return node_->value;
         }
 
@@ -106,10 +109,8 @@ class SingleLinkedList {
         // Вызов этого оператора у итератора, не указывающего на существующий элемент списка,
         // приводит к неопределённому поведению
         [[nodiscard]] pointer operator->() const noexcept {
-            if (node_) {
-                return &(node_->value);
-            }
-            return nullptr;
+            assert(node_);
+            return &(node_->value);
         }
 
     private:
@@ -173,12 +174,13 @@ public:
     }
 
     void PopFront() noexcept {
-        if (head_.next_node != nullptr) {
-            auto temp = head_.next_node;
-            head_.next_node = head_.next_node->next_node;
-            delete temp;
-            --size_;
-        }
+        assert(!this->IsEmpty()); 
+        
+        auto temp = head_.next_node;
+        head_.next_node = head_.next_node->next_node;
+        delete temp;
+        --size_;
+        
     }
 
     void Clear() noexcept {
@@ -188,6 +190,7 @@ public:
     }
     
     Iterator InsertAfter(ConstIterator pos, const Type& value) {
+        assert(pos.node_);
         if (pos == this->before_begin()) {
             PushFront(value);
             return this->begin();
@@ -200,11 +203,10 @@ public:
     }
     
     Iterator EraseAfter(ConstIterator pos) noexcept {
+        assert(size_ && pos.node_->next_node);
         if (pos == this->before_begin()) {
             PopFront();
             return this->begin();
-//         } else if (pos == this->end()) {
-//             return this->end();
         } else {
             auto new_next = pos.node_->next_node->next_node;
             delete pos.node_->next_node;
@@ -214,29 +216,21 @@ public:
         }
     }
     
+    template <typename Container>
+    void ListCreation(const Container& c) {
+        auto ptr = this->before_begin();
+        for (auto it : c) {
+            ptr = this->InsertAfter(ptr, it);
+        }    
+    }
+    
     SingleLinkedList(std::initializer_list<Type> values) {
-        for (auto it = values.end()-1; it >= values.begin(); --it) {
-            PushFront(*it);
-        }
+        ListCreation(values);
     }
 
     SingleLinkedList(const SingleLinkedList& other) {
         assert(size_ == 0 && head_.next_node == nullptr);
-        /* Создаем временный список. 
-         * Так как порядок прохождения от begin до end,
-         * то список получаеться перевернутый */
-        SingleLinkedList tmp1;
-        for (auto it : other) {
-            tmp1.PushFront(it);
-        }
-        
-        // Создаем второй временный список для разварота 
-        SingleLinkedList tmp;
-        for (auto it : tmp1) {
-            tmp.PushFront(it);
-        }
-        // Меняет текущий список с временным
-        swap(tmp);
+        ListCreation(other);
     }
 
     SingleLinkedList& operator=(const SingleLinkedList& rhs) {
@@ -248,12 +242,8 @@ public:
     }
 
     void swap(SingleLinkedList& other) noexcept {
-        auto temp_pt = head_.next_node;
-        auto temp_size = size_;
-        head_.next_node = other.head_.next_node;
-        size_ = other.size_;
-        other.size_ = temp_size;
-        other.head_.next_node = temp_pt;    
+        std::swap(head_.next_node, other.head_.next_node);
+        std::swap(size_, other.size_);
     }
 
     [[nodiscard]] size_t GetSize() const noexcept {
